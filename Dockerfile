@@ -1,6 +1,9 @@
-# Dockerfile
 FROM python:3.12-alpine
+
 WORKDIR /app
-COPY . .
+
+COPY server.py .
+
 EXPOSE 3000
-CMD ["python", "server.py"]
+
+CMD ["python", "-u", "server.py"]

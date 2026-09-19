@@ -11,6 +11,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Hello World desde Railway!")
 
-print(f"Escuchando en el puerto {port}")
+print(f"Escuchando en el puerto {port}", flush=True)
 
 HTTPServer(("0.0.0.0", port), Handler).serve_forever()
