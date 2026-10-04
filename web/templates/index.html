@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Central - WM_Central</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #ffffff; color: #000000; }
+        h1 { font-size: 18px; margin-bottom: 2px; border-bottom: 1px solid #000000; padding-bottom: 4px; }
+        .subtitulo { font-size: 12px; color: #555555; margin-bottom: 14px; }
+        .info-red { background-color: #f0f0f0; border: 1px solid #bbbbbb; padding: 6px 10px; font-size: 12px; margin-bottom: 14px; }
+        .seccion-titulo { font-size: 14px; font-weight: bold; margin: 14px 0 6px 0; border-bottom: 1px solid #cccccc; padding-bottom: 2px; }
+        .caja-resumen { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+        .resumen-item { flex: 1; min-width: 100px; background: #f8f8f8; border: 1px solid #cccccc; padding: 8px; text-align: center; }
+        .resumen-item .num { font-size: 22px; font-weight: bold; }
+        .resumen-item .lbl { font-size: 11px; color: #555555; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+        th, td { border: 1px solid #bbbbbb; padding: 6px 8px; text-align: left; }
+        th { background-color: #e8e8e8; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f5f5f5; }
+        .estado { display: inline-block; padding: 2px 6px; font-size: 11px; font-weight: bold; border: 1px solid #999999; }
+        .estado-disponible { background-color: #d4edda; color: #155724; border-color: #aaaaaa; }
+        .estado-regando    { background-color: #cce5ff; color: #004085; border-color: #aaaaaa; }
+        .estado-fuga       { background-color: #f8d7da; color: #721c24; border-color: #aaaaaa; }
+        .estado-bloqueada  { background-color: #fff3cd; color: #856404; border-color: #aaaaaa; }
+        .estado-desconectada { background-color: #e2e3e5; color: #383d41; border-color: #aaaaaa; }
+        button, .btn { background-color: #e8e8e8; border: 1px solid #999999; color: #000000; padding: 3px 8px; font-size: 12px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 3px; }
+        button:hover, .btn:hover { background-color: #d0d0d0; }
+        .btn-panel { background-color: #ddeeff; border-color: #6699cc; color: #003366; }
+        .btn-panel:hover { background-color: #bbddff; }
+        .caja-logs { border: 1px solid #bbbbbb; background-color: #fafafa; height: 160px; overflow-y: scroll; font-family: "Courier New", monospace; font-size: 12px; padding: 6px 8px; color: #333333; }
+        .log-item { padding: 1px 0; border-bottom: 1px solid #eeeeee; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.3); justify-content: center; align-items: center; z-index: 100; }
+        .modal-caja { background: #ffffff; border: 1px solid #888888; padding: 16px; width: 300px; }
+        .modal-caja h3 { font-size: 14px; margin-bottom: 10px; }
+        .form-campo { margin-bottom: 10px; }
+        .form-campo label { display: block; font-size: 12px; margin-bottom: 3px; }
+        .form-campo input { width: 95%; padding: 5px; border: 1px solid #bbbbbb; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1>Sistema Central de Control de Riego - WM_Central</h1>
+    <div class="subtitulo">Panel de gestion y monitorizacion de estaciones distribuidas</div>
+    <div class="info-red">
+        Broker Kafka: <strong>caboose.proxy.rlwy.net:37367</strong> (Escucha interna: 9092) &nbsp;|&nbsp;
+        Servidor Sockets: <strong>0.0.0.0:9000</strong> &nbsp;|&nbsp;
+        Web Central: <strong>Puerto 3000</strong>
+    </div>
+    <div class="seccion-titulo">Resumen de Estado</div>
+    <div class="caja-resumen">
+        <div class="resumen-item"><div class="num" id="kpiTotal">0</div><div class="lbl">Total</div></div>
+        <div class="resumen-item"><div class="num" id="kpiDisp" style="color:#155724;">0</div><div class="lbl">Disponibles</div></div>
+        <div class="resumen-item"><div class="num" id="kpiReg" style="color:#004085;">0</div><div class="lbl">Regando</div></div>
+        <div class="resumen-item"><div class="num" id="kpiFuga" style="color:#721c24;">0</div><div class="lbl">Con Fuga</div></div>
+        <div class="resumen-item"><div class="num" id="kpiFuera" style="color:#856404;">0</div><div class="lbl">Bloqueadas</div></div>
+        <div class="resumen-item"><div class="num" id="kpiDesc" style="color:#6c757d;">0</div><div class="lbl">Desconectadas</div></div>
+    </div>
+    <div class="seccion-titulo">Estaciones de Riego Registradas</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Estacion</th>
+                <th>Ubicacion</th>
+                <th>Estado</th>
+                <th>Caudal (L/min)</th>
+                <th>Volumen Total (L)</th>
+                <th>Operario</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="tablaEstaciones">
+            <tr><td colspan="7" style="text-align:center;color:#777777;padding:16px;">Cargando informacion de estaciones...</td></tr>
+        </tbody>
+    </table>
+    <div class="seccion-titulo">Registro de Eventos del Sistema</div>
+    <div class="caja-logs" id="cajaLogs">
+        <div class="log-item">Sin eventos registrados.</div>
+    </div>
+
+    <div class="modal" id="modalRiego">
+        <div class="modal-caja">
+            <h3>Iniciar Riego Manual</h3>
+            <div class="form-campo">
+                <label>Estacion:</label>
+                <input type="text" id="modalWsId" readonly>
+            </div>
+            <div class="form-campo">
+                <label>Duracion en segundos:</label>
+                <input type="number" id="modalDuracion" value="15" min="3" max="180">
+            </div>
+            <div style="text-align:right;margin-top:12px;">
+                <button type="button" onclick="cerrarModal()">Cancelar</button>
+                <button type="button" style="background-color:#336699;color:#ffffff;" onclick="confirmarRiego()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function cargarDatos() {
+            fetch('/api/status')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    actualizarTabla(data.stations || []);
+                    actualizarResumen(data.stations || []);
+                    actualizarLogs(data.logs || []);
+                })
+                .catch(function(err) { console.error("Error al obtener datos:", err); });
+        }
+        function actualizarResumen(stations) {
+            var total=stations.length, disp=0, reg=0, fuga=0, fuera=0, desc=0;
+            for (var i=0;i<stations.length;i++) {
+                var st=stations[i].status;
+                if(st==='AVAILABLE') disp++;
+                else if(st==='WATERING') reg++;
+                else if(st==='LEAK') fuga++;
+                else if(st==='OUT_OF_SERVICE') fuera++;
+                else desc++;
+            }
+            document.getElementById('kpiTotal').innerText=total;
+            document.getElementById('kpiDisp').innerText=disp;
+            document.getElementById('kpiReg').innerText=reg;
+            document.getElementById('kpiFuga').innerText=fuga;
+            document.getElementById('kpiFuera').innerText=fuera;
+            document.getElementById('kpiDesc').innerText=desc;
+        }
+        function obtenerEtiquetaEstado(status) {
+            switch(status) {
+                case 'AVAILABLE': return '<span class="estado estado-disponible">DISPONIBLE</span>';
+                case 'WATERING':  return '<span class="estado estado-regando">REGANDO</span>';
+                case 'LEAK':      return '<span class="estado estado-fuga">FUGA</span>';
+                case 'OUT_OF_SERVICE': return '<span class="estado estado-bloqueada">FUERA DE SERVICIO</span>';
+                default: return '<span class="estado estado-desconectada">DESCONECTADA</span>';
+            }
+        }
+        function calcularPuertoWs(ws_id) {
+            var digits=ws_id.replace(/\D/g,'');
+            return digits ? 3000+parseInt(digits,10) : 3001;
+        }
+        function actualizarTabla(stations) {
+            var tbody=document.getElementById('tablaEstaciones');
+            if(!stations||stations.length===0) {
+                tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#777777;padding:16px;">No hay estaciones registradas.</td></tr>';
+                return;
+            }
+            var html='';
+            for(var i=0;i<stations.length;i++) {
+                var s=stations[i];
+                var wsPort=calcularPuertoWs(s.id);
+                html+='<tr>';
+                html+='<td><strong>'+s.id+'</strong></td>';
+                html+='<td>'+s.location+'</td>';
+                html+='<td>'+obtenerEtiquetaEstado(s.status)+'</td>';
+                html+='<td>'+(s.flow||0).toFixed(1)+'</td>';
+                html+='<td>'+(s.accumulated_vol||0).toFixed(1)+'</td>';
+                html+='<td>'+(s.current_operator||'-')+'</td>';
+                html+='<td>';
+                html+='<button onclick="abrirModal(\''+s.id+'\')">Regar</button>';
+                html+='<button onclick="enviarAccion(\''+s.id+'\',\'BLOCK\')">Bloquear</button>';
+                html+='<button onclick="enviarAccion(\''+s.id+'\',\'ACTIVATE\')">Activar</button>';
+                html+='<a href="http://localhost:'+wsPort+'" target="_blank" class="btn btn-panel">Panel '+s.id+'</a>';
+                html+='</td></tr>';
+            }
+            tbody.innerHTML=html;
+        }
+        function actualizarLogs(logs) {
+            var caja=document.getElementById('cajaLogs');
+            if(!logs||logs.length===0) { caja.innerHTML='<div class="log-item">Sin eventos registrados.</div>'; return; }
+            var html='';
+            for(var i=0;i<logs.length;i++) {
+                var l=logs[i];
+                var hora=l.start_time?l.start_time.split(' ')[1]:'--:--:--';
+                var detalle=l.details||(l.status+' ('+(l.volume_liters||0).toFixed(1)+' L)');
+                html+='<div class="log-item">['+hora+'] '+l.ws_id+' ('+(l.operator_id||'-')+'): '+detalle+'</div>';
+            }
+            caja.innerHTML=html;
+        }
+        function enviarAccion(ws_id, accion, extra) {
+            var payload={ws_id:ws_id,action:accion};
+            if(extra){for(var k in extra){payload[k]=extra[k];}}
+            fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+            .then(function(res){return res.json();})
+            .then(function(res){if(!res.success){alert('Aviso: '+res.error);} cargarDatos();})
+            .catch(function(err){alert('Error de conexion: '+err);});
+        }
+        function abrirModal(ws_id) {
+            document.getElementById('modalWsId').value=ws_id;
+            document.getElementById('modalRiego').style.display='flex';
+        }
+        function cerrarModal() { document.getElementById('modalRiego').style.display='none'; }
+        function confirmarRiego() {
+            var ws_id=document.getElementById('modalWsId').value;
+            var duracion=parseInt(document.getElementById('modalDuracion').value)||15;
+            enviarAccion(ws_id,'START',{duration:duracion,operator_id:'CENTRAL'});
+            cerrarModal();
+        }
+        setInterval(cargarDatos,1000);
+        cargarDatos();
+    </script>
+</body>
+</html>

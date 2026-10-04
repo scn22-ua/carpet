@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Estacion - {{ ws_id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #ffffff; color: #000000; }
+        h1 { font-size: 18px; margin: 0 0 2px 0; }
+        .cabecera { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #000000; padding-bottom: 6px; margin-bottom: 12px; }
+        .subtitulo { font-size: 12px; color: #555555; margin-top: 2px; }
+        a.enlace-central { font-size: 12px; color: #003366; text-decoration: none; border: 1px solid #bbbbbb; padding: 3px 8px; background: #f0f0f0; }
+        a.enlace-central:hover { background: #e0e0e0; }
+        .info-red { background-color: #f0f0f0; border: 1px solid #bbbbbb; padding: 6px 10px; font-size: 12px; margin-bottom: 14px; }
+        .seccion-titulo { font-size: 14px; font-weight: bold; margin: 14px 0 6px 0; border-bottom: 1px solid #cccccc; padding-bottom: 2px; }
+        .grid-dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        @media (max-width: 720px) { .grid-dos-col { grid-template-columns: 1fr; } }
+        .bloque { border: 1px solid #cccccc; padding: 12px; background: #fafafa; }
+        .bloque-titulo { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #444444; margin-bottom: 10px; border-bottom: 1px solid #dddddd; padding-bottom: 3px; }
+        .caja-valvula { padding: 10px; text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 12px; border: 1px solid #bbbbbb; background: #eeeeee; color: #333333; }
+        .valvula-abierta { background-color: #d1ecf1; color: #0c5460; border-color: #aaaaaa; }
+        .valvula-fuga { background-color: #f8d7da; color: #721c24; border-color: #aaaaaa; }
+        .fila-metrica { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eeeeee; font-size: 13px; }
+        .fila-metrica:last-child { border-bottom: none; }
+        .fila-metrica .etiqueta { color: #555555; }
+        .fila-metrica .valor { font-weight: bold; }
+        .botones-control { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+        button { background-color: #e8e8e8; border: 1px solid #999999; color: #000000; padding: 6px 10px; font-size: 13px; cursor: pointer; width: 100%; text-align: left; }
+        button:hover { background-color: #d0d0d0; }
+        .btn-fuga { background-color: #f8d7da; border-color: #aaaaaa; color: #721c24; }
+        .btn-fuga:hover { background-color: #f0b8bc; }
+        .btn-ok { background-color: #d4edda; border-color: #aaaaaa; color: #155724; }
+        .btn-ok:hover { background-color: #bcdec4; }
+        .btn-parada { background-color: #fff3cd; border-color: #aaaaaa; color: #856404; }
+        .btn-parada:hover { background-color: #ffe8a1; }
+        .form-riego { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+        .form-riego input { flex: 1; padding: 6px; border: 1px solid #bbbbbb; font-size: 13px; }
+        .btn-iniciar { background-color: #336699; border-color: #224488; color: #ffffff; padding: 6px 12px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+        .btn-iniciar:hover { background-color: #224488; }
+        .caja-logs { border: 1px solid #bbbbbb; background-color: #fafafa; height: 150px; overflow-y: scroll; font-family: "Courier New", monospace; font-size: 12px; padding: 6px 8px; color: #333333; }
+        .log-item { padding: 1px 0; border-bottom: 1px solid #eeeeee; }
+        #mensajeAviso { display: none; padding: 6px 10px; margin-bottom: 12px; font-size: 13px; background-color: #d4edda; border: 1px solid #aaaaaa; color: #155724; }
+    </style>
+</head>
+<body>
+    <div class="cabecera">
+        <div>
+            <h1>Estacion de Riego: {{ ws_id }}</h1>
+            <div class="subtitulo">Panel local del motor y valvula actuadora</div>
+        </div>
+        <a href="http://localhost:3000" target="_blank" class="enlace-central">Panel Central (Puerto 3000)</a>
+    </div>
+
+    <div id="mensajeAviso">Accion ejecutada correctamente.</div>
+
+    <div class="info-red">
+        ID Estacion: <strong>{{ ws_id }}</strong> &nbsp;|&nbsp;
+        Monitor: <strong id="txtMonitor">127.0.0.1:9101</strong> &nbsp;|&nbsp;
+        Kafka: <strong id="txtKafka">caboose.proxy.rlwy.net:37367</strong> &nbsp;|&nbsp;
+        Puerto Web Local: <strong>{{ web_port }}</strong>
+    </div>
+
+    <div class="grid-dos-col">
+        <div class="bloque">
+            <div class="bloque-titulo">Estado y Mediciones</div>
+            <div id="cajaValvula" class="caja-valvula">ELECTROVALVULA CERRADA (EN REPOSO)</div>
+            <div class="fila-metrica">
+                <span class="etiqueta">Estado de la estacion:</span>
+                <span class="valor" id="txtEstado">DISPONIBLE</span>
+            </div>
+            <div class="fila-metrica">
+                <span class="etiqueta">Caudal instantaneo:</span>
+                <span class="valor"><span id="txtCaudal">0.0</span> L/min</span>
+            </div>
+            <div class="fila-metrica">
+                <span class="etiqueta">Volumen total suministrado:</span>
+                <span class="valor"><span id="txtVolumen">0.0</span> L</span>
+            </div>
+            <div class="fila-metrica">
+                <span class="etiqueta">Tiempo transcurrido / Total:</span>
+                <span class="valor"><span id="txtTiempo">0</span> s</span>
+            </div>
+            <div class="fila-metrica">
+                <span class="etiqueta">Operario asignado:</span>
+                <span class="valor" id="txtOperario">-</span>
+            </div>
+        </div>
+
+        <div class="bloque">
+            <div class="bloque-titulo">Controles de la Estacion</div>
+            <div class="botones-control">
+                <button class="btn-fuga" onclick="ejecutarAccion('SIMULATE_KO')">Simular Fuga / Averia (KO)</button>
+                <button class="btn-ok" onclick="ejecutarAccion('RESOLVE_KO')">Reparar Averia / Restablecer (OK)</button>
+                <button class="btn-parada" onclick="ejecutarAccion('STOP_WATERING')">Detener Riego (Parada manual)</button>
+            </div>
+            <div class="bloque-titulo" style="margin-top:12px;">Riego Manual Local</div>
+            <div class="form-riego">
+                <input type="number" id="inputSegundos" value="15" min="3" max="180" placeholder="Segundos">
+                <button class="btn-iniciar" onclick="iniciarRiegoLocal()">Iniciar Riego</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="seccion-titulo">Registro de Actividad - {{ ws_id }}</div>
+    <div class="caja-logs" id="cajaLogs">
+        <div class="log-item">Cargando registros...</div>
+    </div>
+
+    <script>
+        function mostrarAviso(texto) {
+            var el=document.getElementById('mensajeAviso');
+            el.innerText=texto; el.style.display='block';
+            setTimeout(function(){el.style.display='none';},3000);
+        }
+        function actualizarPanel() {
+            fetch('/api/status')
+                .then(function(res){return res.json();})
+                .then(function(data){renderizar(data);})
+                .catch(function(err){console.error("Error consultando estado:",err);});
+        }
+        function renderizar(data) {
+            document.getElementById('txtMonitor').innerText=data.monitor_addr||'-';
+            document.getElementById('txtKafka').innerText=data.kafka_broker||'-';
+            document.getElementById('txtOperario').innerText=data.current_operator||'-';
+            var cajaValvula=document.getElementById('cajaValvula');
+            var txtEstado=document.getElementById('txtEstado');
+            if(data.simulated_ko) {
+                cajaValvula.className='caja-valvula valvula-fuga';
+                cajaValvula.innerText='AVERIA / FUGA ACTIVA (REPORTE KO)';
+                txtEstado.innerText='FUGA (KO)'; txtEstado.style.color='#721c24';
+            } else if(data.valve_open||data.status==='WATERING') {
+                cajaValvula.className='caja-valvula valvula-abierta';
+                cajaValvula.innerText='ELECTROVALVULA ABIERTA (SUMINISTRANDO AGUA)';
+                txtEstado.innerText='REGANDO'; txtEstado.style.color='#004085';
+            } else if(data.status==='OUT_OF_SERVICE') {
+                cajaValvula.className='caja-valvula';
+                cajaValvula.innerText='ESTACION FUERA DE SERVICIO (BLOQUEADA)';
+                txtEstado.innerText='FUERA DE SERVICIO'; txtEstado.style.color='#856404';
+            } else {
+                cajaValvula.className='caja-valvula';
+                cajaValvula.innerText='ELECTROVALVULA CERRADA (EN REPOSO)';
+                txtEstado.innerText='DISPONIBLE'; txtEstado.style.color='#155724';
+            }
+            document.getElementById('txtCaudal').innerText=Number(data.flow||0).toFixed(1);
+            document.getElementById('txtVolumen').innerText=Number(data.accumulated_volume||0).toFixed(2);
+            var elapsed=data.elapsed||0, duration=data.duration||0;
+            document.getElementById('txtTiempo').innerText=(data.valve_open&&duration>0)?(elapsed+' / '+duration):'0';
+            renderLogs(data.events||[]);
+        }
+        function renderLogs(logs) {
+            var caja=document.getElementById('cajaLogs');
+            if(!logs||logs.length===0){caja.innerHTML='<div class="log-item">Sin eventos registrados.</div>';return;}
+            var html='';
+            for(var i=0;i<logs.length;i++){
+                var l=logs[i];
+                html+='<div class="log-item">['+(l.time||'--:--')+'] ['+(l.type||'INFO')+'] '+(l.message||'')+'</div>';
+            }
+            caja.innerHTML=html;
+        }
+        function ejecutarAccion(accion,extra) {
+            var payload={action:accion};
+            if(extra){for(var k in extra){payload[k]=extra[k];}}
+            fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+            .then(function(res){return res.json();})
+            .then(function(res){
+                if(res.success){mostrarAviso(res.message||"Operacion realizada con exito.");}
+                else{alert("Aviso: "+(res.error||"No se pudo realizar la operacion."));}
+                actualizarPanel();
+            })
+            .catch(function(err){alert("Error de comunicacion: "+err);});
+        }
+        function iniciarRiegoLocal() {
+            var dur=parseInt(document.getElementById('inputSegundos').value)||15;
+            ejecutarAccion('START_WATERING',{duration:dur});
+        }
+        setInterval(actualizarPanel,800);
+        actualizarPanel();
+    </script>
+</body>
+</html>
