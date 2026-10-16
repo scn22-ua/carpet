@@ -9,6 +9,10 @@ Parámetros requeridos por el PDF:
 Ejemplo de ejecución:
     python WM_Central.py 9000 caboose.proxy.rlwy.net:37367 --web-port 3000
     python WM_Central.py 9000 9092 --web-port 3000
+
+Notas de arquitectura:
+    * Puerto  socket_port   (default 9000): conexiones de WM_WS_M (monitores de estación)
+    * Puerto  socket_port+1 (default 9001): autenticación de operarios WM_FO por socket TCP
 """
 
 import sys
@@ -54,13 +58,18 @@ logging.getLogger('werkzeug').setLevel(logging.WARNING)
 class CentralSystem:
     def __init__(self, socket_port: int, kafka_broker: str, web_port: int = 3000):
         self.socket_port = socket_port
+        self.fo_auth_port = socket_port + 1   # Puerto dedicado a autenticación FO
         self.kafka_broker = kafka_broker
         self.web_port = web_port
         self.running = True
 
-        # Sockets conectados: { ws_id: client_socket }
+        # Sockets conectados de monitores WS: { ws_id: client_socket }
         self.connected_ws_sockets = {}
         self.socket_lock = threading.Lock()
+
+        # Sockets de operarios autenticados: { fo_id: client_socket }
+        self.authenticated_fo_sockets = {}
+        self.fo_socket_lock = threading.Lock()
 
         # Productor y Consumidor Kafka
         self.producer = None
@@ -190,8 +199,106 @@ class CentralSystem:
             sock.close()
 
     # =========================================================================
-    # 2. KAFKA: Streaming de eventos y peticiones
+    # 1b. SERVIDOR DE SOCKETS PARA OPERARIOS FO (Autenticación por socket TCP)
     # =========================================================================
+    def start_fo_auth_server(self):
+        """
+        Servidor TCP en el puerto fo_auth_port que autentica a los operarios WM_FO.
+        El FO envía: AUTH#fo_id
+        Central responde: AUTH_OK#fo_id  o  AUTH_FAIL#motivo
+        La sesión de socket permanece abierta mientras el FO esté en línea.
+        """
+        server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_sock.bind(('0.0.0.0', self.fo_auth_port))
+        server_sock.listen(20)
+        logger.info(f"✅ Servidor de Autenticación FO escuchando en el puerto {self.fo_auth_port}")
+
+        while self.running:
+            try:
+                client_sock, client_addr = server_sock.accept()
+                t = threading.Thread(
+                    target=self.handle_fo_connection,
+                    args=(client_sock, client_addr),
+                    daemon=True
+                )
+                t.start()
+            except Exception as e:
+                if self.running:
+                    logger.error(f"Error aceptando conexión FO: {e}")
+                break
+
+    def handle_fo_connection(self, sock: socket.socket, addr):
+        """
+        Gestiona la sesión de autenticación de un operario de campo por socket.
+        Protocolo:
+            FO  -> AUTH#fo_id
+            CTR -> AUTH_OK#fo_id   |  AUTH_FAIL#motivo
+        La conexión se mantiene viva (keep-alive pasivo) hasta que el FO la cierre.
+        """
+        fo_id = None
+        try:
+            logger.info(f"Conexión de operario FO entrante desde {addr}")
+            msg = protocol.recv_frame(sock, send_ack=True, timeout=15.0)
+            if not msg:
+                sock.close()
+                return
+
+            parts = msg.split(protocol.DELIMITER)
+            cmd = parts[0]
+
+            if cmd == "AUTH" and len(parts) >= 2:
+                fo_id = parts[1].strip()
+                logger.info(f"📡 Solicitud de autenticación de operario: {fo_id}")
+
+                # Validar operario en BD
+                op_info = db.get_operator(fo_id)
+                if op_info:
+                    protocol.send_frame(sock, f"AUTH_OK{protocol.DELIMITER}{fo_id}", wait_ack=True)
+                    with self.fo_socket_lock:
+                        self.authenticated_fo_sockets[fo_id] = sock
+                    self.add_event(fo_id, "SYSTEM", "AUTH", f"Operario {fo_id} autenticado correctamente ({op_info['name']})")
+                    logger.info(f"✅ Operario {fo_id} autenticado: {op_info['name']}")
+                else:
+                    protocol.send_frame(sock, f"AUTH_FAIL{protocol.DELIMITER}Operario {fo_id} no registrado", wait_ack=False)
+                    logger.warning(f"Autenticación denegada para {fo_id}: no registrado en BD")
+                    sock.close()
+                    return
+            else:
+                logger.warning(f"Trama inesperada de {addr}: {msg}")
+                sock.close()
+                return
+
+            # Mantener la conexión abierta (el FO puede cerrarla al terminar)
+            while self.running:
+                try:
+                    frame = protocol.recv_frame(sock, send_ack=True, timeout=60.0)
+                    if not frame:
+                        break
+                    # El FO puede enviar LOGOUT para cerrar limpiamente
+                    if frame.startswith("LOGOUT"):
+                        logger.info(f"Operario {fo_id} ha cerrado sesión correctamente.")
+                        break
+                except socket.timeout:
+                    continue
+                except (ConnectionResetError, BrokenPipeError):
+                    break
+
+        except Exception as e:
+            logger.error(f"Error en sesión FO {addr} ({fo_id}): {e}")
+        finally:
+            if fo_id:
+                with self.fo_socket_lock:
+                    if fo_id in self.authenticated_fo_sockets:
+                        del self.authenticated_fo_sockets[fo_id]
+                self.add_event(fo_id, "SYSTEM", "OFFLINE", f"Operario {fo_id} desconectado.")
+                logger.info(f"Operario {fo_id} desconectado del servidor de autenticación.")
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+
     def start_kafka(self):
         logger.info(f"Conectando a Kafka broker en {self.kafka_broker}...")
         try:
@@ -487,21 +594,26 @@ def main():
 
     print("=" * 65)
     print("   🌿 WATER MANAGEMENT NETWORK - CENTRAL (SD 26/27) 🌿")
-    print(f"   * Puerto Sockets (para WS_M) : {socket_port}")
+    print(f"   * Puerto Sockets WM_WS_M    : {socket_port}")
+    print(f"   * Puerto Auth. Operarios FO : {socket_port + 1}")
     print(f"   * Broker Kafka              : {kafka_broker}")
     print(f"   * Servidor Web (Dashboard)  : http://localhost:{web_port}")
     print("=" * 65)
 
     central_instance = CentralSystem(socket_port, kafka_broker, web_port)
 
-    # 1. Hilo Servidor de Sockets
+    # 1. Hilo Servidor de Sockets para WM_WS_M
     t_socket = threading.Thread(target=central_instance.start_socket_server, daemon=True)
     t_socket.start()
 
-    # 2. Hilo Kafka
+    # 2. Hilo Servidor de Autenticación para operarios FO
+    t_fo_auth = threading.Thread(target=central_instance.start_fo_auth_server, daemon=True)
+    t_fo_auth.start()
+
+    # 3. Hilo Kafka
     central_instance.start_kafka()
 
-    # 3. Servidor Web en hilo principal
+    # 4. Servidor Web en hilo principal
     app.run(host='0.0.0.0', port=web_port, debug=False, use_reloader=False)
 
 if __name__ == '__main__':

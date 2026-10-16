@@ -1,0 +1,7 @@
+Nombres de los integrantes del grupo:
+
+- [NOMBRE APELLIDO 1]
+- [NOMBRE APELLIDO 2]
+
+Asignatura: Sistemas Distribuidos (SD 26/27)
+Práctica: WaterManagement Network

@@ -71,11 +71,21 @@ def init_db(db_path: str = DB_FILE):
         cursor.execute("SELECT COUNT(*) FROM watering_stations")
         if cursor.fetchone()[0] == 0:
             initial_stations = [
-                ("WS-01", "Parque de Canalejas", "OFFLINE"),
-                ("WS-02", "Jardines del Palmeral", "OFFLINE"),
-                ("WS-03", "Parque La Marjal", "OFFLINE"),
-                ("WS-04", "Parque Central", "OFFLINE"),
-                ("WS-05", "Explanada de España", "OFFLINE"),
+                ("WS-01",  "Parque de Canalejas",           "OFFLINE"),
+                ("WS-02",  "Jardines del Palmeral",          "OFFLINE"),
+                ("WS-03",  "Parque La Marjal",               "OFFLINE"),
+                ("WS-04",  "Parque Central",                 "OFFLINE"),
+                ("WS-05",  "Explanada de España",            "OFFLINE"),
+                ("WS-06",  "Parque El Cabo de las Huertas",  "OFFLINE"),
+                ("WS-07",  "Jardines de la Diputación",      "OFFLINE"),
+                ("WS-08",  "Parque Lo Morant",               "OFFLINE"),
+                ("WS-09",  "Parque Vistahermosa",            "OFFLINE"),
+                ("WS-10",  "Jardines de Benacantil",         "OFFLINE"),
+                ("WS-11",  "Parque de las Naciones",         "OFFLINE"),
+                ("WS-12",  "Jardines del Mercado Central",   "OFFLINE"),
+                ("WS-13",  "Parque de Séneca",               "OFFLINE"),
+                ("WS-14",  "Jardines de la Albufereta",      "OFFLINE"),
+                ("WS-15",  "Parque Municipal de Babel",      "OFFLINE"),
             ]
             cursor.executemany(
                 "INSERT INTO watering_stations (id, location, status) VALUES (?, ?, ?)",
@@ -88,6 +98,10 @@ def init_db(db_path: str = DB_FILE):
                 ("FO-01", "Carlos Gómez - Jardinería Zona Centro"),
                 ("FO-02", "Ana Martínez - Mantenimiento Parques Sur"),
                 ("FO-03", "Luis Navarro - Supervisor Playas y Jardines"),
+                ("FO-04", "María Ruiz - Mantenimiento Parques Norte"),
+                ("FO-05", "Pedro Sánchez - Zona Litoral y Playas"),
+                ("FO-06", "Elena Torres - Supervisora Zona Este"),
+                ("FO-07", "Javier López - Técnico de Riegos Zona Oeste"),
             ]
             cursor.executemany(
                 "INSERT INTO operators (id, name) VALUES (?, ?)",
