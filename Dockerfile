@@ -14,4 +14,8 @@ COPY . .
 EXPOSE 3000
 EXPOSE 9000
 
-CMD ["python", "-u", "WM_Central.py", "9000", "caboose.proxy.rlwy.net:37367"]
+# Broker Kafka y puerto de sockets configurables por variables de entorno
+ENV KAFKA_BOOTSTRAP_SERVERS=caboose.proxy.rlwy.net:37367
+ENV SOCKET_PORT=9000
+
+CMD ["sh", "-c", "python -u WM_Central.py ${SOCKET_PORT} ${KAFKA_BOOTSTRAP_SERVERS}"]
