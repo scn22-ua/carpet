@@ -4,7 +4,7 @@ WM_FO - Aplicación del Operario de Campo (Field Operator)
 Asignatura: Sistemas Distribuidos (SD 26/27) - Water Management Network
 
 Parámetros requeridos por el PDF:
-    python WM_FO.py <kafka_broker> <central_auth_ip:port> <operator_id> [--file <ruta_fichero>]
+    python WM_FO.py <kafka_broker> <operator_id> [--file <ruta_fichero>]
 
 Ejemplos:
     Modo Interactivo : python WM_FO.py caboose.proxy.rlwy.net:37367 127.0.0.1:9001 FO-01
@@ -40,9 +40,8 @@ logging.basicConfig(
 logger = logging.getLogger("WM_FO")
 
 class FieldOperatorApp:
-    def __init__(self, kafka_broker: str, central_auth_addr: Tuple[str, int], operator_id: str, batch_file: Optional[str] = None):
+    def __init__(self, kafka_broker: str, operator_id: str, batch_file: Optional[str] = None):
         self.kafka_broker = kafka_broker
-        self.central_auth_host, self.central_auth_port = central_auth_addr
         self.operator_id = operator_id
         self.batch_file = batch_file
         
@@ -50,12 +49,14 @@ class FieldOperatorApp:
         self.producer = None
 
         # Socket de autenticación con Central
-        self.auth_sock = None
-        self.auth_lock = threading.Lock()
         
         # Sincronización del servicio activo
         self.current_service_event = threading.Event()
         self.consumer_ready = threading.Event()
+        self.auth_event = threading.Event()
+        self.auth_request_id = None
+        self.auth_result = None
+        self.auth_message = ""
         self.current_ws_id = None
         self.current_service_result = None
         self.current_request_id = None
@@ -63,64 +64,48 @@ class FieldOperatorApp:
     # =========================================================================
     # AUTENTICACIÓN POR SOCKET TCP CON CENTRAL
     # =========================================================================
-    def authenticate_socket(self) -> bool:
+    def authenticate_kafka(self) -> bool:
         """
-        Conecta al servidor de autenticación de Central por socket TCP y
-        envía la trama AUTH#fo_id usando el protocolo STX/ETX/LRC.
-        Devuelve True si la autenticación fue exitosa, False en caso contrario.
+        Autentica al operario contra Central a través de Kafka:
+        envía {"type": "AUTH"} a wm-requests y espera AUTH_OK/AUTH_FAIL en wm-responses.
         """
-        retries = 0
-        max_retries = 10
-        while retries < max_retries:
+        for attempt in range(1, 6):
+            self.auth_request_id = uuid.uuid4().hex[:8]
+            self.auth_event.clear()
+            self.auth_result = None
             try:
-                logger.info(f"Conectando al servidor de autenticación de Central en "
-                            f"{self.central_auth_host}:{self.central_auth_port}...")
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.connect((self.central_auth_host, self.central_auth_port))
-
-                # Enviar trama de autenticación
-                auth_payload = f"AUTH{protocol.DELIMITER}{self.operator_id}"
-                protocol.send_frame(s, auth_payload, wait_ack=True)
-
-                # Esperar respuesta de Central
-                resp = protocol.recv_frame(s, send_ack=True, timeout=10.0)
-                if resp.startswith("AUTH_OK"):
-                    logger.info(f"✅ Autenticación exitosa en Central como operario {self.operator_id}")
-                    self.auth_sock = s
-                    return True
-                elif resp.startswith("AUTH_FAIL"):
-                    reason = resp.split(protocol.DELIMITER, 1)[-1] if protocol.DELIMITER in resp else resp
-                    logger.error(f"❌ Autenticación denegada por Central: {reason}")
-                    s.close()
-                    return False
-                else:
-                    logger.error(f"Respuesta inesperada de Central: {resp}")
-                    s.close()
-                    return False
-
+                self.producer.send(kconfig.TOPIC_REQUESTS, {
+                    "type": "AUTH",
+                    "request_id": self.auth_request_id,
+                    "operator_id": self.operator_id,
+                    "timestamp": time.time(),
+                })
+                self.producer.flush()
             except Exception as e:
-                retries += 1
-                logger.warning(f"No se pudo conectar a Central para autenticar "
-                               f"({retries}/{max_retries}): {e}. Reintentando en 3s...")
-                time.sleep(3)
+                logger.warning(f"Error enviando AUTH a Kafka ({attempt}/5): {e}")
+                time.sleep(2)
+                continue
+
+            if self.auth_event.wait(timeout=10.0):
+                if self.auth_result == "AUTH_OK":
+                    logger.info(f"✅ Autenticación exitosa en Central como operario {self.operator_id}")
+                    return True
+                logger.error(f"❌ Autenticación denegada por Central: {self.auth_message}")
+                return False
+            logger.warning(f"Central no respondió a la autenticación ({attempt}/5). Reintentando...")
 
         logger.error("No se pudo autenticar con Central tras varios intentos. Abortando.")
         return False
 
-    def logout_socket(self):
-        """Envia LOGOUT a Central y cierra el socket de autenticación."""
-        with self.auth_lock:
-            if self.auth_sock:
-                try:
-                    protocol.send_frame(self.auth_sock, "LOGOUT", wait_ack=False)
-                    protocol.send_eot(self.auth_sock)
-                    self.auth_sock.close()
-                except Exception:
-                    pass
-                finally:
-                    self.auth_sock = None
-                    logger.info("Sesión de socket cerrada correctamente.")
-
+    def logout_kafka(self):
+        """Avisa a Central del cierre de sesión."""
+        try:
+            if self.producer:
+                self.producer.send(kconfig.TOPIC_REQUESTS, {"type": "LOGOUT", "operator_id": self.operator_id})
+                self.producer.flush()
+                logger.info("Sesión cerrada correctamente.")
+        except Exception:
+            pass
 
     def start_kafka(self):
         logger.info(f"Conectando al broker Kafka en {self.kafka_broker}...")
@@ -216,6 +201,15 @@ class FieldOperatorApp:
     def handle_central_response(self, data: dict):
         status = data.get("status")
         msg = data.get("message", "")
+
+        # Respuesta de autenticación (se identifica por request_id, ignora las antiguas)
+        if status in ("AUTH_OK", "AUTH_FAIL"):
+            if (data.get("data") or {}).get("request_id") == self.auth_request_id:
+                self.auth_result = status
+                self.auth_message = msg
+                self.auth_event.set()
+            return
+
         ws_id = data.get("ws_id", "")
         extra = data.get("data", {})
         req_id = extra.get("request_id")
@@ -361,18 +355,17 @@ class FieldOperatorApp:
                 print("Opción no reconocida.")
 
     def run(self):
-        # 1. Autenticación por socket TCP con Central (obligatoria antes de operar)
-        print(f"\n🔐 Autenticando con Central en {self.central_auth_host}:{self.central_auth_port}...")
-        if not self.authenticate_socket():
-            print(f"\n❌ Autenticación fallida. El operario {self.operator_id} no puede operar.")
-            return
-
-        print(f"✅ Operario {self.operator_id} autenticado. Conectando a Kafka...")
-
-        # 2. Conectar a Kafka
+        # 1. Conectar a Kafka
         self.start_kafka()
         self.consumer_ready.wait(timeout=10.0)
         time.sleep(1.0)  # Margen de asignación de particiones
+
+        # 2. Autenticación con Central por Kafka (obligatoria antes de operar)
+        print(f"\n🔐 Autenticando a {self.operator_id} con Central vía Kafka...")
+        if not self.authenticate_kafka():
+            print(f"\n❌ Autenticación fallida. El operario {self.operator_id} no puede operar.")
+            return
+        print(f"✅ Operario {self.operator_id} autenticado.")
 
         try:
             if self.batch_file:
@@ -380,29 +373,33 @@ class FieldOperatorApp:
             else:
                 self.run_interactive()
         finally:
-            # Cerrar sesión de socket al terminar
-            self.logout_socket()
+            self.logout_kafka()
 
 def main():
-    if len(sys.argv) < 4:
-        print("Uso obligatorio: python WM_FO.py <kafka_broker> <central_auth_ip:port> <operator_id> [--file <archivo_servicios>]")
-        print("Ejemplo: python WM_FO.py caboose.proxy.rlwy.net:37367 127.0.0.1:9001 FO-01")
-        print("Ejemplo batch: python WM_FO.py caboose.proxy.rlwy.net:37367 127.0.0.1:9001 FO-01 --file servicios.txt")
-        print("Ejemplo con puerto 9092: python WM_FO.py 9092 127.0.0.1:9001 FO-01")
+    # Argumentos posicionales (ignora --file y su valor)
+    args = []
+    skip = False
+    for a in sys.argv[1:]:
+        if skip:
+            skip = False
+        elif a == "--file":
+            skip = True
+        else:
+            args.append(a)
+
+    # Compatibilidad: formato antiguo <broker> <host:puerto> <operator_id> (el host:puerto se ignora)
+    if len(args) == 3 and ":" in args[1]:
+        args = [args[0], args[2]]
+
+    if len(args) != 2:
+        print("Uso: python WM_FO.py <kafka_broker> <operator_id> [--file <archivo_servicios>]")
+        print("Ejemplo: python WM_FO.py caboose.proxy.rlwy.net:37367 FO-01")
+        print("Ejemplo batch: python WM_FO.py caboose.proxy.rlwy.net:37367 FO-01 --file servicios.txt")
         sys.exit(1)
 
-    kafka_broker_raw = sys.argv[1]
-    kafka_broker = kconfig.normalize_bootstrap_servers(kafka_broker_raw)[0]
-    central_auth_arg = sys.argv[2]
-    operator_id = sys.argv[3]
+    kafka_broker = kconfig.normalize_bootstrap_servers(args[0])[0]
+    operator_id = args[1]
 
-    if ":" not in central_auth_arg:
-        print("Error: central_auth_ip:port debe tener formato host:puerto (ej: 127.0.0.1:9001)")
-        sys.exit(1)
-
-    auth_host, auth_port_str = central_auth_arg.split(":")
-    auth_port = int(auth_port_str)
-    
     batch_file = None
     if "--file" in sys.argv:
         idx = sys.argv.index("--file")
@@ -412,7 +409,7 @@ def main():
     print("=" * 65)
     print(f"   🚜 FIELD OPERATOR APP - {operator_id} (SD 26/27) 🚜")
     print(f"   * Broker Kafka          : {kafka_broker}")
-    print(f"   * Auth. Central (socket): {auth_host}:{auth_port}")
+    print("   * Autenticación         : vía Kafka")
     print(f"   * ID Operador           : {operator_id}")
     if batch_file:
         print(f"   * Modo Archivo          : {batch_file}")
@@ -420,12 +417,12 @@ def main():
         print("   * Modo                  : Interactivo")
     print("=" * 65)
 
-    app = FieldOperatorApp(kafka_broker, (auth_host, auth_port), operator_id, batch_file)
+    app = FieldOperatorApp(kafka_broker, operator_id, batch_file)
     try:
         app.run()
     except KeyboardInterrupt:
         print("\nOperario cerrado.")
-        app.logout_socket()
+        app.logout_kafka()
 
 if __name__ == '__main__':
     main()
