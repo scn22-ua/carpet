@@ -404,11 +404,39 @@ class CentralSystem:
                 logger.error(f"Error en procesado de telemetría: {e}")
                 time.sleep(1)
 
+    def process_operator_auth(self, req: dict):
+        """
+        Autenticación de operarios FO por Kafka.
+            FO  -> wm-requests : {"type": "AUTH", "operator_id": ..., "request_id": ...}
+            CTR -> wm-responses: status AUTH_OK | AUTH_FAIL (con el mismo request_id)
+        """
+        operator_id = str(req.get("operator_id") or "").strip()
+        extra = {"request_id": req.get("request_id")}
+
+        if req.get("type") == "LOGOUT":
+            self.add_event(operator_id, "SYSTEM", "OFFLINE", f"Operario {operator_id} desconectado.")
+            logger.info(f"Operario {operator_id} ha cerrado sesión (Kafka).")
+            return
+
+        logger.info(f"📡 Solicitud de autenticación por Kafka de operario: {operator_id}")
+        op_info = db.get_operator(operator_id) if operator_id else None
+        if op_info:
+            self.notify_operator(operator_id, "", "AUTH_OK", f"Operario {operator_id} autenticado ({op_info['name']})", extra)
+            self.add_event(operator_id, "SYSTEM", "AUTH", f"Operario {operator_id} autenticado correctamente ({op_info['name']})")
+        else:
+            self.notify_operator(operator_id, "", "AUTH_FAIL", f"Operario {operator_id} no registrado", extra)
+            logger.warning(f"Autenticación denegada para {operator_id}: no registrado en BD")
+
     def process_operator_request(self, req: dict):
         """
         Requisito 4 del PDF: Comprobaciones para validar que la estación esté disponible.
         Notifica al operario de cada paso.
         """
+        # Autenticación / cierre de sesión de operarios por Kafka (sustituye al socket 9001)
+        if req.get("type") in ("AUTH", "LOGOUT"):
+            self.process_operator_auth(req)
+            return
+
         operator_id = req.get("operator_id")
         ws_id = req.get("ws_id")
         duration = int(req.get("duration", 15))

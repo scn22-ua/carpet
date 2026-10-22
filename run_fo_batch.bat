@@ -5,7 +5,7 @@ set PYTHONIOENCODING=utf-8
 echo ===================================================
 echo     Iniciando Operario FO-01 (Modo Batch: servicios.txt)
 echo     Kafka: caboose.proxy.rlwy.net:37367 / 9092
-echo     Auth Central: 127.0.0.1:9001
+echo     Autenticación: vía Kafka
 echo ===================================================
-python WM_FO.py caboose.proxy.rlwy.net:37367 127.0.0.1:9001 FO-01 --file servicios.txt
+python WM_FO.py caboose.proxy.rlwy.net:37367 FO-01 --file servicios.txt
 pause
