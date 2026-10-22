@@ -10,7 +10,9 @@ import os
 import threading
 from typing import List, Dict, Any, Optional
 
-DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "water_management.db")
+# En Railway, DB_PATH apunta al volumen persistente (p. ej. /data/water_management.db)
+DB_FILE = os.environ.get("DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "water_management.db")
+os.makedirs(os.path.dirname(os.path.abspath(DB_FILE)), exist_ok=True)
 _lock = threading.Lock()
 
 def get_connection(db_path: str = DB_FILE) -> sqlite3.Connection:
