@@ -47,7 +47,7 @@ http://localhost:3000
 Monitor:
 
 ```bash
-python WM_WS_M.py 9101 127.0.0.1:9000 WS-01
+python WM_WS_M.py 9101 metro.proxy.rlwy.net:26248 WS-01
 ```
 
 Motor:
