@@ -1,0 +1,433 @@
+services:
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-01  (Monitor: 9101 | Web: 3001)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_01:
+    build: { context: ., dockerfile: Dockerfile.app }
+    image: wm_app:latest
+    container_name: wm_ws_m_01
+    command: python -u WM_WS_M.py 9101 ${CENTRAL_WS_ADDR} WS-01
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_01:
+    image: wm_app:latest
+    container_name: wm_ws_e_01
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_01:9101 --ws-id WS-01 --web-port 3001
+    ports: ["3001:3001"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_01]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-02  (Monitor: 9102 | Web: 3002)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_02:
+    image: wm_app:latest
+    container_name: wm_ws_m_02
+    command: python -u WM_WS_M.py 9102 ${CENTRAL_WS_ADDR} WS-02
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_02:
+    image: wm_app:latest
+    container_name: wm_ws_e_02
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_02:9102 --ws-id WS-02 --web-port 3002
+    ports: ["3002:3002"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_02]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-03  (Monitor: 9103 | Web: 3003)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_03:
+    image: wm_app:latest
+    container_name: wm_ws_m_03
+    command: python -u WM_WS_M.py 9103 ${CENTRAL_WS_ADDR} WS-03
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_03:
+    image: wm_app:latest
+    container_name: wm_ws_e_03
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_03:9103 --ws-id WS-03 --web-port 3003
+    ports: ["3003:3003"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_03]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-04  (Monitor: 9104 | Web: 3004)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_04:
+    image: wm_app:latest
+    container_name: wm_ws_m_04
+    command: python -u WM_WS_M.py 9104 ${CENTRAL_WS_ADDR} WS-04
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_04:
+    image: wm_app:latest
+    container_name: wm_ws_e_04
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_04:9104 --ws-id WS-04 --web-port 3004
+    ports: ["3004:3004"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_04]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-05  (Monitor: 9105 | Web: 3005)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_05:
+    image: wm_app:latest
+    container_name: wm_ws_m_05
+    command: python -u WM_WS_M.py 9105 ${CENTRAL_WS_ADDR} WS-05
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_05:
+    image: wm_app:latest
+    container_name: wm_ws_e_05
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_05:9105 --ws-id WS-05 --web-port 3005
+    ports: ["3005:3005"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_05]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-06  (Monitor: 9106 | Web: 3006)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_06:
+    image: wm_app:latest
+    container_name: wm_ws_m_06
+    command: python -u WM_WS_M.py 9106 ${CENTRAL_WS_ADDR} WS-06
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_06:
+    image: wm_app:latest
+    container_name: wm_ws_e_06
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_06:9106 --ws-id WS-06 --web-port 3006
+    ports: ["3006:3006"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_06]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-07  (Monitor: 9107 | Web: 3007)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_07:
+    image: wm_app:latest
+    container_name: wm_ws_m_07
+    command: python -u WM_WS_M.py 9107 ${CENTRAL_WS_ADDR} WS-07
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_07:
+    image: wm_app:latest
+    container_name: wm_ws_e_07
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_07:9107 --ws-id WS-07 --web-port 3007
+    ports: ["3007:3007"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_07]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-08  (Monitor: 9108 | Web: 3008)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_08:
+    image: wm_app:latest
+    container_name: wm_ws_m_08
+    command: python -u WM_WS_M.py 9108 ${CENTRAL_WS_ADDR} WS-08
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_08:
+    image: wm_app:latest
+    container_name: wm_ws_e_08
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_08:9108 --ws-id WS-08 --web-port 3008
+    ports: ["3008:3008"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_08]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-09  (Monitor: 9109 | Web: 3009)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_09:
+    image: wm_app:latest
+    container_name: wm_ws_m_09
+    command: python -u WM_WS_M.py 9109 ${CENTRAL_WS_ADDR} WS-09
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_09:
+    image: wm_app:latest
+    container_name: wm_ws_e_09
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_09:9109 --ws-id WS-09 --web-port 3009
+    ports: ["3009:3009"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_09]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-10  (Monitor: 9110 | Web: 3010)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_10:
+    image: wm_app:latest
+    container_name: wm_ws_m_10
+    command: python -u WM_WS_M.py 9110 ${CENTRAL_WS_ADDR} WS-10
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_10:
+    image: wm_app:latest
+    container_name: wm_ws_e_10
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_10:9110 --ws-id WS-10 --web-port 3010
+    ports: ["3010:3010"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_10]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-11  (Monitor: 9111 | Web: 3011)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_11:
+    image: wm_app:latest
+    container_name: wm_ws_m_11
+    command: python -u WM_WS_M.py 9111 ${CENTRAL_WS_ADDR} WS-11
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_11:
+    image: wm_app:latest
+    container_name: wm_ws_e_11
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_11:9111 --ws-id WS-11 --web-port 3011
+    ports: ["3011:3011"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_11]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-12  (Monitor: 9112 | Web: 3012)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_12:
+    image: wm_app:latest
+    container_name: wm_ws_m_12
+    command: python -u WM_WS_M.py 9112 ${CENTRAL_WS_ADDR} WS-12
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_12:
+    image: wm_app:latest
+    container_name: wm_ws_e_12
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_12:9112 --ws-id WS-12 --web-port 3012
+    ports: ["3012:3012"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_12]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-13  (Monitor: 9113 | Web: 3013)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_13:
+    image: wm_app:latest
+    container_name: wm_ws_m_13
+    command: python -u WM_WS_M.py 9113 ${CENTRAL_WS_ADDR} WS-13
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_13:
+    image: wm_app:latest
+    container_name: wm_ws_e_13
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_13:9113 --ws-id WS-13 --web-port 3013
+    ports: ["3013:3013"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_13]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-14  (Monitor: 9114 | Web: 3014)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_14:
+    image: wm_app:latest
+    container_name: wm_ws_m_14
+    command: python -u WM_WS_M.py 9114 ${CENTRAL_WS_ADDR} WS-14
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_14:
+    image: wm_app:latest
+    container_name: wm_ws_e_14
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_14:9114 --ws-id WS-14 --web-port 3014
+    ports: ["3014:3014"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_14]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WS-15  (Monitor: 9115 | Web: 3015)
+  # ═══════════════════════════════════════════════════════════════
+  wm_ws_m_15:
+    image: wm_app:latest
+    container_name: wm_ws_m_15
+    command: python -u WM_WS_M.py 9115 ${CENTRAL_WS_ADDR} WS-15
+    networks: [wm_network]
+    restart: unless-stopped
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  wm_ws_e_15:
+    image: wm_app:latest
+    container_name: wm_ws_e_15
+    command: python -u WM_WS_E.py ${KAFKA_BROKER} wm_ws_m_15:9115 --ws-id WS-15 --web-port 3015
+    ports: ["3015:3015"]
+    networks: [wm_network]
+    depends_on: [wm_ws_m_15]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8]
+
+  # ═══════════════════════════════════════════════════════════════
+  #  WM_FO – Operarios de Campo (FO-01 … FO-07)
+  #  SKIP_FO_AUTH=1 → omite auth por socket TCP con Central
+  #  Puertos web: 4001 a 4007
+  # ═══════════════════════════════════════════════════════════════
+  wm_fo_01:
+    image: wm_app:latest
+    container_name: wm_fo_01
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-01 --web-port 4001
+    ports: ["4001:4001"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+  wm_fo_02:
+    image: wm_app:latest
+    container_name: wm_fo_02
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-02 --web-port 4002
+    ports: ["4002:4002"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+  wm_fo_03:
+    image: wm_app:latest
+    container_name: wm_fo_03
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-03 --web-port 4003
+    ports: ["4003:4003"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+  wm_fo_04:
+    image: wm_app:latest
+    container_name: wm_fo_04
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-04 --web-port 4004
+    ports: ["4004:4004"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+  wm_fo_05:
+    image: wm_app:latest
+    container_name: wm_fo_05
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-05 --web-port 4005
+    ports: ["4005:4005"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+  wm_fo_06:
+    image: wm_app:latest
+    container_name: wm_fo_06
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-06 --web-port 4006
+    ports: ["4006:4006"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+  wm_fo_07:
+    image: wm_app:latest
+    container_name: wm_fo_07
+    command: python -u WM_FO.py ${KAFKA_BROKER} placeholder:9001 FO-07 --web-port 4007
+    ports: ["4007:4007"]
+    networks: [wm_network]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    environment: [PYTHONUNBUFFERED=1, PYTHONIOENCODING=utf-8, SKIP_FO_AUTH=1]
+
+networks:
+  wm_network:
+    driver: bridge
