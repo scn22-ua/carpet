@@ -1,6 +1,6 @@
 Nombres de los integrantes del grupo:
 
-- [NOMBRE APELLIDO 1]
+- Sergio Cortes Netlennii
 - [NOMBRE APELLIDO 2]
 
 Asignatura: Sistemas Distribuidos (SD 26/27)
